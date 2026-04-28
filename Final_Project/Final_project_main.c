@@ -66,6 +66,7 @@ int main(void)
   clock_init_40mhz();
   launchpad_gpio_init();
   lcd1602_init();
+  msec_delay(500);
 
   // enter your code here
   run_monitoring_system();
