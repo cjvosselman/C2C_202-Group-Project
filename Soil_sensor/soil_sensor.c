@@ -1,7 +1,7 @@
 //*****************************************************************************
 //*****************************    C Source Code    ***************************
 //*****************************************************************************
-//  DESIGNER NAME:  Casey J Vosselman
+//  DESIGNER NAME:  TBD
 //
 //       LAB NAME:  TBD
 //
@@ -50,6 +50,12 @@
 //-----------------------------------------------------------------------------
 
 // Define a structure to hold different data types
+typedef struct
+{
+  char     name[10]; // Name of preset
+  uint16_t light;    // light level in ...
+  uint16_t duration; // Duration in milliseconds
+} preset_struct_t;
 
 int main(void)
 {
@@ -59,7 +65,7 @@ int main(void)
   lcd1602_init();
 
   // enter your code here
-  
+  run_monitoring_system();
 
   // Endless loop to prevent program from ending
   while (1)
