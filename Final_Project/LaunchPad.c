@@ -2190,16 +2190,6 @@ static uint32_t I2C_mstr_read_internal(uint8_t slave, uint8_t *buffer,
     } /* while */
   } /* if */
 
-  // Ensure the RX FIFO empty
-  I2C1->MASTER.MFIFOCTL |= I2C_MFIFOCTL_RXFLUSH_FLUSH;
-
-  // Keep flushing until FIFO is empty
-  while ((I2C1->MASTER.MFIFOSR & I2C_MFIFOSR_RXFIFOCNT_MASK) != 
-          I2C_MFIFOSR_RXFIFOCNT_MINIMUM);
-  
-  // Clear flush bit
-  I2C1->MASTER.MFIFOCTL &= ~I2C_MFIFOCTL_RXFLUSH_MASK;
-
   if (ret_status == I2C_SUCCESS)
   {
     // Set the slave address and R/W bit to 0
