@@ -42,18 +42,14 @@
 //-----------------------------------------------------------------------------
 void wait_for_pb_released(uint8_t PB_IDX);
 void read_display_soil();
+void average_adc_values();
 
 //-----------------------------------------------------------------------------
 // Define symbolic constants used by the program
 //-----------------------------------------------------------------------------
-#define wet_stp_size                                                          33
-#define dry_state_max                                                         99
-#define dry_state_min                                                         66
-#define wet_state_max                                                         65
-#define wet_state_min                                                         34
-#define too_wet_state_max                                                     33
-#define too_wet_state_min                                                     0
-#define adc_max                                                             2180
+#define adc12_max                                                           4096
+#define soil_threshold                                                      2200 // Dry is above | Wet is below
+#define adc_to_tens(adc_val) ((adc_val) * (10 / adc12_max))
 //-----------------------------------------------------------------------------
 // Define global variables and structures here.
 // NOTE: when possible avoid using global variables
@@ -69,10 +65,12 @@ int main(void)
   I2C_mstr_init();
   lcd1602_init();
   ADC0_init(ADC12_MEMCTL_VRSEL_VDDA_VSSA);
+  
+  average_adc_values();
 
   read_display_soil();
 
-  // enter your code here
+  
   
 
   // Endless loop to prevent program from ending
@@ -85,37 +83,36 @@ void read_display_soil()
 {
 
   bool     done      = false;
-  uint16_t adc_value = 0;
-  uint8_t wet_step = 0;
+  uint16_t soil_read = 0;  
+  uint16_t soil_value = 0;
+  uint16_t dry_soil_value = 0;
+  
   lcd_clear();
 
   while (!done)
   {
-    adc_value = ADC0_in(5);
-  
+    soil_read = ADC0_in(5);
+    soil_value = soil_read;
+    dry_soil_value = soil_threshold;
     
     lcd_set_ddram_addr(LCD_LINE1_ADDR);
 
-    if ((adc_max-adc_value) >= dry_state_min)
+    if (soil_value < dry_soil_value )
     {
-      lcd_write_string("Status: Very Wet");
-      
-    else if ((adc_max-adc_value) <= too_wet_state_max)
+      lcd_write_string("Status: Soil Wet");
+    }  
+    else if (soil_value > dry_soil_value)
     {
-      lcd_write_string("Status: Dry");
+      lcd_write_string("Status: Soil Dry");
     }
-    }
-    else
-    {
-      lcd_write_string("Status: Proper Moisture");
-      
-    }
+    
+
 
     lcd_write_string("ADC:");
 
     lcd_set_ddram_addr(LCD_LINE2_ADDR);
 
-    lcd_write_doublebyte(adc_value);
+    lcd_write_doublebyte(soil_value);
 
     if (is_pb_down(PB1_IDX))
     {
@@ -147,4 +144,16 @@ void wait_for_pb_released(uint8_t PB_IDX)
   while (is_pb_down(PB_IDX))
     ;
   msec_delay(10);
+}
+
+
+void average_adc_values()
+{
+ADC0->ULLMEM.MEMCTL[0] =  ADC12_MEMCTL_AVGEN_ENABLE;
+ADC0->ULLMEM.CTL1 = ADC12_CTL1_AVGN_AVG_16 | ADC12_CTL1_AVGD_SHIFT4;
+}
+
+void ADC12_0_INST_IRQHandler(void)
+{
+
 }
