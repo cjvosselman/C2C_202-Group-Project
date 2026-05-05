@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Final_Project",
+      "type": "ccs-debug",
+      "request": "launch",
+      "projectInfo": {
+        "name": "Final_Project",
+        "resourceId": "/Final_Project/Light_sensor_main.c"
+      }
+    }
+  ]
+}
