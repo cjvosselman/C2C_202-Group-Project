@@ -153,7 +153,65 @@ ADC0->ULLMEM.MEMCTL[0] =  ADC12_MEMCTL_AVGEN_ENABLE;
 ADC0->ULLMEM.CTL1 = ADC12_CTL1_AVGN_AVG_16 | ADC12_CTL1_AVGD_SHIFT4;
 }
 
-void ADC12_0_INST_IRQHandler(void)
+void enable_wincomp()
 {
-
+  ADC0->ULLMEM.MEMCTL[0] = ADC12_MEMCTL_WINCOMP_ENABLE;
+  ADC0->ULLMEM.WCHIGH = 
 }
+
+void ADC0_IRQHandler(void)
+{
+  uint32_t ADC0_iidx_status;
+  uint32_t ADC0_mis;
+
+  do
+  {
+    group_iidx_status = CPUSS->INT_GROUP[1].IIDX;
+
+    gpio_mis = GPIOA->CPU_INT.MIS;
+
+        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO15_MASK) ==
+            GPIO_CPU_INT_MIS_DIO15_SET)
+        {
+          g_pb2_pressed       = true;
+          GPIOA->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO15_CLR;
+        }
+    }
+  } while (group_iidx_status != 0);
+
+
+void GROUP1_IRQHandler(void)
+
+{
+  uint32_t group_iidx_status;
+  uint32_t gpio_mis;
+
+  do
+  {
+    group_iidx_status = CPUSS->INT_GROUP[1].IIDX;
+
+    switch (group_iidx_status)
+    {
+      case (CPUSS_INT_GROUP_IIDX_STAT_INT0):
+        gpio_mis = GPIOA->CPU_INT.MIS;
+
+        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO15_MASK) ==
+            GPIO_CPU_INT_MIS_DIO15_SET)
+        {
+          g_pb2_pressed       = true;
+          GPIOA->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO15_CLR;
+        }
+
+        break;
+
+      case (CPUSS_INT_GROUP_IIDX_STAT_INT1):
+        gpio_mis = GPIOB->CPU_INT.MIS;
+
+        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO18_MASK) ==
+            GPIO_CPU_INT_MIS_DIO18_SET)
+        {
+          g_pb1_pressed       = true;
+          GPIOB->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO18_CLR;
+        }
+    }
+  } while (group_iidx_status != 0);
