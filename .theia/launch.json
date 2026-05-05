@@ -9,6 +9,15 @@
                 "name": "Soil_Sensor",
                 "resourceId": "/Soil_Sensor/Final_project_main.c"
             }
+        },
+        {
+            "name": "Soil_Sensor (1)",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "Soil_Sensor",
+                "resourceId": "/Soil_Sensor/soil_sensor_main.c"
+            }
         }
     ]
 }

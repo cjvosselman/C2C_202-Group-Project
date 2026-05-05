@@ -153,7 +153,7 @@ ADC0->ULLMEM.MEMCTL[0] =  ADC12_MEMCTL_AVGEN_ENABLE;
 ADC0->ULLMEM.CTL1 = ADC12_CTL1_AVGN_AVG_16 | ADC12_CTL1_AVGD_SHIFT4;
 }
 
-void enable_wincomp()
+/*void enable_wincomp()
 {
   ADC0->ULLMEM.MEMCTL[0] = ADC12_MEMCTL_WINCOMP_ENABLE;
   ADC0->ULLMEM.WCHIGH = 
@@ -214,4 +214,4 @@ void GROUP1_IRQHandler(void)
           GPIOB->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO18_CLR;
         }
     }
-  } while (group_iidx_status != 0);
+  } while (group_iidx_status != 0);*/
