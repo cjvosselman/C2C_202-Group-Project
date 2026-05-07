@@ -30,48 +30,47 @@
 // Loads MSP launchpad board support macros and definitions
 //-----------------------------------------------------------------------------
 #include "LaunchPad.h"
-#include "clock.h"
-#include <ti/devices/msp/msp.h>
-#include "lcd1602.h"
 #include "adc.h"
-
-
+#include "clock.h"
+#include "lcd1602.h"
+#include <ti/devices/msp/msp.h>
 
 //-----------------------------------------------------------------------------
 // Define function prototypes used by the program
 //-----------------------------------------------------------------------------
-void wait_for_pb_released(uint8_t PB_IDX);
 void read_display_soil();
-void average_adc_values();
+void enable_adc_avgs();
+bool soil_status(uint16_t adc_value);
+uint16_t average_adc_values();
+void sys_tick_init(uint32_t period);
+void interrupt_sequence();
+void dry_soil(uint16_t adc_value);
+void wet_soil(uint16_t adc_value);
 
 //-----------------------------------------------------------------------------
 // Define symbolic constants used by the program
 //-----------------------------------------------------------------------------
-#define adc12_max                                                           4096
-#define soil_threshold                                                      2200 // Dry is above | Wet is below
-#define adc_to_tens(adc_val) ((adc_val) * (10 / adc12_max))
+#define adc12_max 4096
+#define dry_soil_threshold 3200 // Dry is above | Wet is below
+#define wet_soil_threshold 2800
 //-----------------------------------------------------------------------------
 // Define global variables and structures here.
 // NOTE: when possible avoid using global variables
 //-----------------------------------------------------------------------------
+bool adc_ready = false;
 
 // Define a structure to hold different data types
 
-int main(void)
-{
+int main(void) {
   // Configure the LaunchPad board
   clock_init_40mhz();
   launchpad_gpio_init();
   I2C_mstr_init();
   lcd1602_init();
   ADC0_init(ADC12_MEMCTL_VRSEL_VDDA_VSSA);
-  
-  average_adc_values();
-
+  sys_tick_init(200000);
+  enable_adc_avgs();
   read_display_soil();
-
-  
-  
 
   // Endless loop to prevent program from ending
   while (1)
@@ -79,139 +78,92 @@ int main(void)
 
 } /* main */
 
-void read_display_soil()
-{
+void read_display_soil() {
 
-  bool     done      = false;
-  uint16_t soil_read = 0;  
-  uint16_t soil_value = 0;
-  uint16_t dry_soil_value = 0;
-  
-  lcd_clear();
-
-  while (!done)
+  bool done = false;
+  uint16_t adc_reading = average_adc_values();
+  bool soil_state = soil_status(adc_reading);
+  bool new_soil_state;
+  bool initial_reading = true;
+  while (!done) 
   {
-    soil_read = ADC0_in(5);
-    soil_value = soil_read;
-    dry_soil_value = soil_threshold;
-    
-    lcd_set_ddram_addr(LCD_LINE1_ADDR);
-
-    if (soil_value < dry_soil_value )
-    {
-      lcd_write_string("Status: Soil Wet");
-    }  
-    else if (soil_value > dry_soil_value)
-    {
-      lcd_write_string("Status: Soil Dry");
-    }
-    
-
-
-    lcd_write_string("ADC:");
-
-    lcd_set_ddram_addr(LCD_LINE2_ADDR);
-
-    lcd_write_doublebyte(soil_value);
-
-    if (is_pb_down(PB1_IDX))
-    {
-      wait_for_pb_released(PB1_IDX);
-      done = true;
+    if (adc_ready) {
+      adc_reading = average_adc_values();
+      new_soil_state = soil_status(adc_reading);
+      adc_ready = false;
     }
 
+    if ((soil_state != new_soil_state) || initial_reading) {
+      soil_state = new_soil_state;
+      if (soil_state == true) {
+      dry_soil(adc_reading);
+      } else {
+      wet_soil(adc_reading);
+      }
+      initial_reading = false;
+    }
   }
+}
+
+void enable_adc_avgs() // The adc collects 16 samples and averages them together
+{
+  ADC0->ULLMEM.MEMCTL[0] = ADC12_MEMCTL_AVGEN_ENABLE;
+  ADC0->ULLMEM.CTL1 = ADC12_CTL1_AVGN_AVG_16 | ADC12_CTL1_AVGD_SHIFT4;
+}
+
+// This function collects 10 of the averaged values and averages them to create
+// less noise Smooths out data Updates global variable determining whether or
+// not soil is dry
+uint16_t average_adc_values() {
+
+  uint8_t idx = 0;
+  uint8_t max_idx = 10;
+  uint8_t i = 0;
+  uint16_t sum_adc_val = 0;
+  uint16_t soil_read[max_idx];
+  uint16_t soil_value = 0;
+
+  for (idx = 0; idx < max_idx; idx++) {
+    soil_read[idx] = ADC0_in(5);
+  }
+  for (i = 0; i < max_idx; i++) {
+    sum_adc_val += soil_read[i];
+  }
+  soil_value = sum_adc_val / max_idx;
+
+  return soil_value;
+}
+
+void dry_soil(uint16_t adc_value) 
+{
   lcd_clear();
-  lcd_write_string("Program Stopped");
+  lcd_set_ddram_addr(LCD_LINE1_ADDR);
+  lcd_write_string("Status:DRY");
+  lcd_set_ddram_addr(LCD_LINE2_ADDR);
+  lcd_write_string("MOISTURE:LOW ");
 }
 
-//  ----------------------------------------------------------------------------
-// DESCRIPTION:
-//  Accepts a pushbutton press an input. While the button is down, nothing
-//  happens.
-//
-//  INPUT PARAMETERS:
-//  uint8_t value representing a pushbutton
-//
-//  OUTPUT PARAMETERS:
-//  none
-//
-//  RETURN:
-//  none
-//  ----------------------------------------------------------------------------
-void wait_for_pb_released(uint8_t PB_IDX)
+void wet_soil(uint16_t adc_value) 
 {
-  while (is_pb_down(PB_IDX))
-    ;
-  msec_delay(10);
+  lcd_clear();
+  lcd_set_ddram_addr(LCD_LINE1_ADDR);
+  lcd_write_string("Status:WET");
+  lcd_set_ddram_addr(LCD_LINE2_ADDR);
+  lcd_write_string("MOISTURE:HIGH");
+
 }
 
+bool soil_status(uint16_t adc_value) {
 
-void average_adc_values()
+if (adc_value > dry_soil_threshold)
 {
-ADC0->ULLMEM.MEMCTL[0] =  ADC12_MEMCTL_AVGEN_ENABLE;
-ADC0->ULLMEM.CTL1 = ADC12_CTL1_AVGN_AVG_16 | ADC12_CTL1_AVGD_SHIFT4;
+  return true;
+} 
+else {
+  return false;
 }
 
-/*void enable_wincomp()
-{
-  ADC0->ULLMEM.MEMCTL[0] = ADC12_MEMCTL_WINCOMP_ENABLE;
-  ADC0->ULLMEM.WCHIGH = 
 }
 
-void ADC0_IRQHandler(void)
-{
-  uint32_t ADC0_iidx_status;
-  uint32_t ADC0_mis;
-
-  do
-  {
-    group_iidx_status = CPUSS->INT_GROUP[1].IIDX;
-
-    gpio_mis = GPIOA->CPU_INT.MIS;
-
-        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO15_MASK) ==
-            GPIO_CPU_INT_MIS_DIO15_SET)
-        {
-          g_pb2_pressed       = true;
-          GPIOA->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO15_CLR;
-        }
-    }
-  } while (group_iidx_status != 0);
-
-
-void GROUP1_IRQHandler(void)
-
-{
-  uint32_t group_iidx_status;
-  uint32_t gpio_mis;
-
-  do
-  {
-    group_iidx_status = CPUSS->INT_GROUP[1].IIDX;
-
-    switch (group_iidx_status)
-    {
-      case (CPUSS_INT_GROUP_IIDX_STAT_INT0):
-        gpio_mis = GPIOA->CPU_INT.MIS;
-
-        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO15_MASK) ==
-            GPIO_CPU_INT_MIS_DIO15_SET)
-        {
-          g_pb2_pressed       = true;
-          GPIOA->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO15_CLR;
-        }
-
-        break;
-
-      case (CPUSS_INT_GROUP_IIDX_STAT_INT1):
-        gpio_mis = GPIOB->CPU_INT.MIS;
-
-        if ((gpio_mis & GPIO_CPU_INT_MIS_DIO18_MASK) ==
-            GPIO_CPU_INT_MIS_DIO18_SET)
-        {
-          g_pb1_pressed       = true;
-          GPIOB->CPU_INT.ICLR = GPIO_CPU_INT_ICLR_DIO18_CLR;
-        }
-    }
-  } while (group_iidx_status != 0);*/
+// SysTick Interrupt Service Routine
+void SysTick_Handler(void) { adc_ready = true; } /* SysTick_Handler */

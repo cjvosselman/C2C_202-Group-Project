@@ -136,11 +136,11 @@ void ADC0_init(uint32_t reference)
   ADC0->ULLMEM.CLKFREQ = ADC12_CLKFREQ_FRANGE_RANGE40TO48;
   
   // Configure ADC Control Register 0
-  ADC0->ULLMEM.CTL0 = ADC12_CTL0_SCLKDIV_DIV_BY_8 | ADC12_CTL0_PWRDN_MANUAL |
+  ADC0->ULLMEM.CTL0 = ADC12_CTL0_SCLKDIV_DIV_BY_48 | ADC12_CTL0_PWRDN_MANUAL |
                       ADC12_CTL0_ENC_OFF;
 
   // Configure Sample Time Compare 0 Register
-  ADC0->ULLMEM.SCOMP0 = 0; // 8 sample clocks
+  ADC0->ULLMEM.SCOMP0 = 8; // 8 sample clocks
   
   if(reference == ADC12_MEMCTL_VRSEL_INTREF_VSSA)
   {
